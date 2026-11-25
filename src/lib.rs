@@ -12,6 +12,8 @@
 //! ffmpeg. The push/pull API mirrors FFmpeg's send/receive convention:
 //! [`Error::Again`] means "feed more input", [`Error::Eof`] means "drained".
 #![cfg_attr(not(feature = "std"), no_std)]
+// the encoder and the x86 paths use some of the shared code
+#![cfg_attr(not(feature = "encoder"), allow(dead_code))]
 
 
 extern crate alloc;
