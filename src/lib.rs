@@ -11,8 +11,104 @@
 //! vectors; the encoder's output is validated pixel-exact against libvpx and
 //! ffmpeg. The push/pull API mirrors FFmpeg's send/receive convention:
 //! [`Error::Again`] means "feed more input", [`Error::Eof`] means "drained".
+#![cfg_attr(not(feature = "std"), no_std)]
 
-use std::collections::VecDeque;
+
+extern crate alloc;
+
+use alloc::collections::VecDeque;
+
+/// What std's prelude gives the modules; the same names without std (NeoSymbian).
+#[allow(unused_imports)]
+mod prelude {
+    pub(crate) use alloc::borrow::ToOwned;
+    pub(crate) use alloc::boxed::Box;
+    pub(crate) use alloc::format;
+    pub(crate) use alloc::string::{String, ToString};
+    pub(crate) use alloc::vec;
+    pub(crate) use alloc::vec::Vec;
+}
+
+/// `thread_local!` without std (NeoSymbian): the per-thread scratch buffers become one shared buffer behind a spin
+/// lock. Uncontended it costs one atomic per use; two decoders on two threads take turns.
+#[cfg(not(feature = "std"))]
+#[macro_use]
+mod no_std_tls {
+    pub(crate) struct Shared<T>(pub(crate) spin::Mutex<core::cell::RefCell<T>>);
+
+    impl<T> Shared<T> {
+        #[inline]
+        pub(crate) fn with<R>(&self, f: impl FnOnce(&core::cell::RefCell<T>) -> R) -> R {
+            f(&self.0.lock())
+        }
+    }
+
+    macro_rules! thread_local {
+        ($(#[$m:meta])* static $name:ident : core::cell::RefCell<$t:ty> = const { core::cell::RefCell::new($init:expr) };) => {
+            $(#[$m])*
+            static $name: crate::no_std_tls::Shared<$t> =
+                crate::no_std_tls::Shared(spin::Mutex::new(core::cell::RefCell::new($init)));
+        };
+    }
+}
+
+/// The decode profiler without std: every scope is a no-op (NeoSymbian).
+#[cfg(not(feature = "std"))]
+mod prof {
+    #[derive(Clone, Copy)]
+    #[allow(dead_code)]
+    pub enum S {
+        Other,
+        Header,
+        ModeInfo,
+        Detokenize,
+        IntraPred,
+        InterPred,
+        InvTxAdd,
+        LoopFilter,
+        Adapt,
+        RefUpdate,
+        FrameSetup,
+    }
+
+    pub struct Scope;
+
+    impl Scope {
+        #[inline(always)]
+        pub fn new(_: S) -> Scope {
+            Scope
+        }
+    }
+
+    pub fn dump() {}
+
+    macro_rules! dprof {
+        ($stage:expr, $body:expr) => {{
+            let _ = $stage;
+            $body
+        }};
+    }
+    pub(crate) use dprof;
+}
+
+#[allow(unused_imports)]
+use prelude::*;
+
+/// `std::sync::OnceLock` for the crate's switches; without std, `spin::Once` (NeoSymbian).
+#[cfg(feature = "std")]
+pub(crate) use std::sync::OnceLock;
+#[cfg(not(feature = "std"))]
+pub(crate) struct OnceLock<T>(spin::Once<T>);
+#[cfg(not(feature = "std"))]
+impl<T> OnceLock<T> {
+    pub(crate) const fn new() -> Self {
+        Self(spin::Once::new())
+    }
+
+    pub(crate) fn get_or_init(&self, f: impl FnOnce() -> T) -> &T {
+        self.0.call_once(f)
+    }
+}
 
 mod error;
 pub use error::{Error, Result};
@@ -21,6 +117,7 @@ mod adapt;
 mod bits;
 mod block;
 mod decode;
+#[cfg(feature = "encoder")]
 #[allow(dead_code, unused_imports)] // Foundation API; consumed from plan Floor 1+.
 mod encode;
 mod geom_tables;
@@ -32,6 +129,7 @@ mod prob;
 mod prob_tables;
 /// Function-level decode profiler (`VP9_DPROF`). Public so the `video-tests`
 /// analyzer can drive it in-process; a normal decode never touches it.
+#[cfg(feature = "std")]
 pub mod prof;
 mod quant;
 mod scan_tables;
@@ -54,8 +152,11 @@ pub use bits::{BitReader, BoolDecoder};
 /// The ENCODER's stage profiler (`VP9_PROF2`), re-exported for the `video-tests`
 /// analyzer. The encoder itself stays private; only the read side of the
 /// instrument is public. See [`prof`] for the decoder's.
+#[cfg(feature = "encoder")]
 pub use encode::prof as encode_prof;
+#[cfg(feature = "encoder")]
 pub use encode::{ref_hist_take, set_modemap_std, set_snap_pool};
+#[cfg(feature = "encoder")]
 pub use encode::{EncodedPacket, Vp9Encoder, Vp9EncoderConfig};
 
 pub(crate) const FRAME_MARKER: u32 = 2;
@@ -527,7 +628,7 @@ pub struct Vp9Decoder {
     queue: VecDeque<(Vec<u8>, Option<i64>, bool)>,
     eof: bool,
     /// The eight reference-frame slots (`ref_frame_map`).
-    ref_frames: [Option<std::sync::Arc<decode::RefFrame>>; 8],
+    ref_frames: [Option<alloc::sync::Arc<decode::RefFrame>>; 8],
     /// Retired reference-frame plane buffers, kept for reuse.
     ///
     /// Allocating three fresh planes per frame was measured at 80-82% of all
@@ -540,9 +641,9 @@ pub struct Vp9Decoder {
     /// The four saved entropy contexts (`frame_contexts`).
     frame_contexts: [decode::FrameContext; 4],
     /// Previous frame's per-mi motion records (for temporal MV prediction).
-    prev_mvs: Option<std::sync::Arc<Vec<mv::MvRef>>>,
+    prev_mvs: Option<alloc::sync::Arc<Vec<mv::MvRef>>>,
     /// Previous frame's segment map (for temporal segment-id prediction).
-    prev_seg_map: Option<std::sync::Arc<Vec<u8>>>,
+    prev_seg_map: Option<alloc::sync::Arc<Vec<u8>>>,
     /// Persistent segmentation features (cleared on key/intra; replaced by an
     /// `update_data` signal; otherwise carried frame to frame).
     seg_feature_enabled: [[bool; 4]; 8],
@@ -656,7 +757,7 @@ impl Vp9Decoder {
         }
 
         // Resolve the three active references (LAST/GOLDEN/ALTREF).
-        let mut active: [Option<std::sync::Arc<decode::RefFrame>>; 3] = [None, None, None];
+        let mut active: [Option<alloc::sync::Arc<decode::RefFrame>>; 3] = [None, None, None];
         if !(h.key_frame || h.intra_only) {
             for i in 0..3 {
                 active[i] = self.ref_frames[h.ref_frame_idx[i]].clone();
@@ -749,7 +850,7 @@ impl Vp9Decoder {
         } else {
             self.plane_pool.pop()
         };
-        let decode_res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let decode_res = catch(|| {
             decode::decode_frame(
                 &h,
                 &data,
@@ -761,7 +862,7 @@ impl Vp9Decoder {
                 prev_seg_map,
                 recycled,
             )
-        }));
+        });
         // Release the decode-time reference handles BEFORE the slot update below.
         // They are clones of the very frames that update is about to retire, so
         // holding them keeps every refcount >= 2 and `Arc::into_inner` can never
@@ -797,7 +898,7 @@ impl Vp9Decoder {
         self.last_width = h.width;
         self.last_height = h.height;
         let _p = prof::Scope::new(prof::S::RefUpdate);
-        let rf = std::sync::Arc::new(decoded);
+        let rf = alloc::sync::Arc::new(decoded);
 
         // Update the reference slots selected by refresh_frame_flags.
         let refresh = if h.key_frame {
@@ -812,7 +913,7 @@ impl Vp9Decoder {
                 // referenced by another slot (or mid-output) is never touched.
                 if let Some(old) = self.ref_frames[i].replace(rf.clone()) {
                     if !pool_disabled() && self.plane_pool.len() < 2 {
-                        if let Some(inner) = std::sync::Arc::into_inner(old) {
+                        if let Some(inner) = alloc::sync::Arc::into_inner(old) {
                             self.plane_pool.push(inner.planes);
                         }
                     }
@@ -898,9 +999,20 @@ fn split_superframe(data: &[u8]) -> Vec<Vec<u8>> {
     vec![data.to_vec()]
 }
 
+/// Runs one frame's decode, turning a panic on malformed input into an error. Without std there is no unwinding: a
+/// panic ends the decoding thread and the caller notices that (NeoSymbian: Files' video worker).
+#[cfg(feature = "std")]
+fn catch<R>(f: impl FnOnce() -> R) -> core::result::Result<R, ()> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|_| ())
+}
+#[cfg(not(feature = "std"))]
+fn catch<R>(f: impl FnOnce() -> R) -> core::result::Result<R, ()> {
+    Ok(f())
+}
+
 /// A/B switch for the frame-buffer pool (DEFAULT ON; set to disable).
 fn pool_disabled() -> bool {
-    static E: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var("VP9_NO_PLANE_POOL").is_ok())
 }
 
@@ -957,7 +1069,7 @@ fn narrow_plane(src: &[u16], stride: usize, w: usize, h: usize, out: &mut Vec<u8
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 unsafe fn narrow_plane_avx2(src: *const u16, stride: usize, w: usize, h: usize, dst: *mut u8) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     // `px as u8` keeps the low byte, so mask before the saturating pack.
     let mask = _mm256_set1_epi16(0x00ff);
     for y in 0..h {

@@ -8,6 +8,8 @@
 //! libvpx's frame-border edge extension bit-for-bit without a border buffer.
 // Wired into the reconstruction loop with the inter mode-info decoder (next).
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 /// `SUBPEL_TAPS` = 8, `FILTER_BITS` = 7, `SUBPEL_SHIFTS` = 16.
 const TAPS: usize = 8;
@@ -108,7 +110,7 @@ thread_local! {
     /// 2-pass motion-comp intermediate scratch (max (64+7)×64), reused per block
     /// to avoid a heap allocation on every sub-pel inter prediction. Per-thread,
     /// so concurrent decoder instances don't contend.
-    static MC_TMP: std::cell::RefCell<[u16; 71 * 64]> = const { std::cell::RefCell::new([0; 71 * 64]) };
+    static MC_TMP: core::cell::RefCell<[u16; 71 * 64]> = const { core::cell::RefCell::new([0; 71 * 64]) };
 }
 
 /// A reference plane viewed for clamped reads.
@@ -160,8 +162,8 @@ impl RefPlane<'_> {
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 #[inline]
-unsafe fn tap_pairs(f: &[i32; 8]) -> [std::arch::x86_64::__m256i; 4] {
-    use std::arch::x86_64::*;
+unsafe fn tap_pairs(f: &[i32; 8]) -> [core::arch::x86_64::__m256i; 4] {
+    use core::arch::x86_64::*;
     [
         _mm256_set1_epi32((f[1] << 16) | (f[0] & 0xffff)),
         _mm256_set1_epi32((f[3] << 16) | (f[2] & 0xffff)),
@@ -175,10 +177,10 @@ unsafe fn tap_pairs(f: &[i32; 8]) -> [std::arch::x86_64::__m256i; 4] {
 #[target_feature(enable = "avx2")]
 #[inline]
 unsafe fn fin256(
-    acc: std::arch::x86_64::__m256i,
-    maxv: std::arch::x86_64::__m256i,
-) -> std::arch::x86_64::__m256i {
-    use std::arch::x86_64::*;
+    acc: core::arch::x86_64::__m256i,
+    maxv: core::arch::x86_64::__m256i,
+) -> core::arch::x86_64::__m256i {
+    use core::arch::x86_64::*;
     let v = _mm256_srai_epi32::<7>(_mm256_add_epi32(acc, _mm256_set1_epi32(64)));
     _mm256_min_epi32(_mm256_max_epi32(v, _mm256_setzero_si256()), maxv)
 }
@@ -187,10 +189,10 @@ unsafe fn fin256(
 #[target_feature(enable = "avx2")]
 #[inline]
 unsafe fn fin128(
-    acc: std::arch::x86_64::__m128i,
-    maxv: std::arch::x86_64::__m128i,
-) -> std::arch::x86_64::__m128i {
-    use std::arch::x86_64::*;
+    acc: core::arch::x86_64::__m128i,
+    maxv: core::arch::x86_64::__m128i,
+) -> core::arch::x86_64::__m128i {
+    use core::arch::x86_64::*;
     let v = _mm_srai_epi32::<7>(_mm_add_epi32(acc, _mm_set1_epi32(64)));
     _mm_min_epi32(_mm_max_epi32(v, _mm_setzero_si128()), maxv)
 }
@@ -201,9 +203,9 @@ unsafe fn fin128(
 #[inline]
 unsafe fn h_taps256(
     s: *const u16,
-    p: &[std::arch::x86_64::__m256i; 4],
-) -> std::arch::x86_64::__m256i {
-    use std::arch::x86_64::*;
+    p: &[core::arch::x86_64::__m256i; 4],
+) -> core::arch::x86_64::__m256i {
+    use core::arch::x86_64::*;
     _mm256_add_epi32(
         _mm256_add_epi32(
             _mm256_madd_epi16(_mm256_loadu_si256(s as *const __m256i), p[0]),
@@ -222,9 +224,9 @@ unsafe fn h_taps256(
 #[inline]
 unsafe fn h_taps128(
     s: *const u16,
-    p: &[std::arch::x86_64::__m256i; 4],
-) -> std::arch::x86_64::__m128i {
-    use std::arch::x86_64::*;
+    p: &[core::arch::x86_64::__m256i; 4],
+) -> core::arch::x86_64::__m128i {
+    use core::arch::x86_64::*;
     // (No closure here: a closure inside a `target_feature` fn does not inherit
     // the feature, and the AVX cast would become a call.)
     let (q0, q1) = (_mm256_castsi256_si128(p[0]), _mm256_castsi256_si128(p[1]));
@@ -262,7 +264,7 @@ unsafe fn conv8_h_block_avx2(
     max: i32,
     avg: bool,
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     if w < 8 {
         // 4-wide blocks have no wide step to take: go straight to the row kernel
         // rather than build this one's constants for nothing.
@@ -348,7 +350,7 @@ unsafe fn conv8_v_block_avx2(
     max: i32,
     avg: bool,
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     if w < 16 {
         // No 16-wide step to take (the row kernel already does 8 and 4).
         for y in 0..h {
@@ -460,7 +462,7 @@ unsafe fn copy_block_avx2(
     w: usize,
     h: usize,
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     match w {
         4 => {
             for y in 0..h {
@@ -487,7 +489,7 @@ unsafe fn copy_block_avx2(
         }
         _ => {
             for y in 0..h {
-                std::ptr::copy_nonoverlapping(src.add(y * ss), dst.add(y * ds), w);
+                core::ptr::copy_nonoverlapping(src.add(y * ss), dst.add(y * ds), w);
             }
         }
     }
@@ -508,8 +510,8 @@ fn gather_tile(
     y0: i32,
     tile: &mut [u16],
     ts: usize,
-    cols: std::ops::Range<usize>,
-    rows: std::ops::Range<usize>,
+    cols: core::ops::Range<usize>,
+    rows: core::ops::Range<usize>,
 ) {
     let (w, h) = (refp.w, refp.h);
     let n = cols.len();
@@ -548,7 +550,7 @@ fn gather_tile(
 /// A/B switch for the clamped-tile edge path (DEFAULT ON; set to disable).
 #[cfg(target_arch = "x86_64")]
 fn no_edge_tile() -> bool {
-    static E: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var("VP9_NO_MC_EDGE_TILE").is_ok())
 }
 
@@ -578,7 +580,7 @@ unsafe fn conv8_avx2(
     max: i32,
     avg: bool,
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     let round = _mm256_set1_epi32(64);
     let one = _mm256_set1_epi32(1);
     let maxv = _mm256_set1_epi32(max);
@@ -701,7 +703,7 @@ unsafe fn predict8x8_hv_avx2(
     dst_stride: usize,
     max: i32,
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     let round = _mm256_set1_epi32(64);
     let maxv = _mm256_set1_epi32(max);
     let zero = _mm256_setzero_si256();
@@ -791,7 +793,7 @@ unsafe fn predict8x8_h_avx2(
     dst_stride: usize,
     max: i32,
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     let round = _mm256_set1_epi32(64);
     let maxv = _mm256_set1_epi32(max);
     let zero = _mm256_setzero_si256();
@@ -847,7 +849,7 @@ unsafe fn predict8x8_v_avx2(
     dst_stride: usize,
     max: i32,
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     let round = _mm256_set1_epi32(64);
     let maxv = _mm256_set1_epi32(max);
     let zero = _mm256_setzero_si256();
@@ -921,17 +923,17 @@ unsafe fn predict8x8_v_avx2(
 #[target_feature(enable = "avx2")]
 #[inline]
 pub unsafe fn sad8x8_u8(s: *const u8, ss: usize, r: *const u8, rs: usize) -> u32 {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     let mut acc = _mm_setzero_si128();
     for y in (0..8).step_by(2) {
         // Two 8-byte rows per xmm; psadbw sums |a−b| into two u16 lanes.
         let sv = _mm_set_epi64x(
-            std::ptr::read_unaligned(s.add((y + 1) * ss) as *const i64),
-            std::ptr::read_unaligned(s.add(y * ss) as *const i64),
+            core::ptr::read_unaligned(s.add((y + 1) * ss) as *const i64),
+            core::ptr::read_unaligned(s.add(y * ss) as *const i64),
         );
         let rv = _mm_set_epi64x(
-            std::ptr::read_unaligned(r.add((y + 1) * rs) as *const i64),
-            std::ptr::read_unaligned(r.add(y * rs) as *const i64),
+            core::ptr::read_unaligned(r.add((y + 1) * rs) as *const i64),
+            core::ptr::read_unaligned(r.add(y * rs) as *const i64),
         );
         acc = _mm_add_epi64(acc, _mm_sad_epu8(sv, rv));
     }
@@ -996,13 +998,13 @@ mod u8score {
     //       such value shifts ((x+64)>>7) to >= 255, which the packus [0,255]
     //       clamp pins — the saturated and exact paths CONVERGE bit-identically.
     use super::RefPlane8;
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
 
     /// Tap pairs as 16 replicated (i8,i8) lanes for pmaddubsw's signed operand.
     #[target_feature(enable = "avx2")]
     #[inline]
     unsafe fn tp(f: &[i32; 8]) -> [__m256i; 4] {
-        std::array::from_fn(|k| {
+        core::array::from_fn(|k| {
             let lo = (f[2 * k] as i8 as u8) as u16;
             let hi = (f[2 * k + 1] as i8 as u8) as u16;
             _mm256_set1_epi16(((hi << 8) | lo) as i16)
@@ -1054,8 +1056,8 @@ mod u8score {
     #[inline]
     unsafe fn sad2(pred2: __m128i, s0: *const u8, s1: *const u8) -> u32 {
         let s = _mm_set_epi64x(
-            std::ptr::read_unaligned(s1 as *const i64),
-            std::ptr::read_unaligned(s0 as *const i64),
+            core::ptr::read_unaligned(s1 as *const i64),
+            core::ptr::read_unaligned(s0 as *const i64),
         );
         let d = _mm_sad_epu8(pred2, s);
         (_mm_cvtsi128_si32(d) as u32) + (_mm_extract_epi32::<2>(d) as u32)
@@ -1098,7 +1100,7 @@ mod u8score {
         let mut sad = 0u32;
         for y in (0..8usize).step_by(2) {
             let m: [__m256i; 4] =
-                std::array::from_fn(|k| _mm256_set_m128i(inter[y + 1 + 2 * k], inter[y + 2 * k]));
+                core::array::from_fn(|k| _mm256_set_m128i(inter[y + 1 + 2 * k], inter[y + 2 * k]));
             let two = step2(m, &ty);
             sad += sad2(two, src.add(y * src_stride), src.add((y + 1) * src_stride));
         }
@@ -1140,8 +1142,8 @@ mod u8score {
     #[inline]
     unsafe fn sse2(pred2: __m128i, s0: *const u8, s1: *const u8) -> u32 {
         let s = _mm_set_epi64x(
-            std::ptr::read_unaligned(s1 as *const i64),
-            std::ptr::read_unaligned(s0 as *const i64),
+            core::ptr::read_unaligned(s1 as *const i64),
+            core::ptr::read_unaligned(s0 as *const i64),
         );
         let d = _mm_or_si128(_mm_subs_epu8(pred2, s), _mm_subs_epu8(s, pred2));
         let d16 = _mm256_cvtepu8_epi16(d);
@@ -1189,7 +1191,7 @@ mod u8score {
         let mut sse = 0u32;
         for y in (0..8usize).step_by(2) {
             let m: [__m256i; 4] =
-                std::array::from_fn(|k| _mm256_set_m128i(inter[y + 1 + 2 * k], inter[y + 2 * k]));
+                core::array::from_fn(|k| _mm256_set_m128i(inter[y + 1 + 2 * k], inter[y + 2 * k]));
             let two = step2(m, &ty);
             sse += sse2(two, src.add(y * src_stride), src.add((y + 1) * src_stride));
         }
@@ -1244,12 +1246,12 @@ mod u8score {
                 base.add((by + r) as usize * refp.stride + bx as usize) as *const __m128i
             )
         };
-        let rows: [__m128i; 15] = std::array::from_fn(|j| row(j as i32 - 3));
-        let inter: [__m128i; 14] = std::array::from_fn(|j| _mm_unpacklo_epi8(rows[j], rows[j + 1]));
+        let rows: [__m128i; 15] = core::array::from_fn(|j| row(j as i32 - 3));
+        let inter: [__m128i; 14] = core::array::from_fn(|j| _mm_unpacklo_epi8(rows[j], rows[j + 1]));
         let mut sse = 0u32;
         for y in (0..8usize).step_by(2) {
             let m: [__m256i; 4] =
-                std::array::from_fn(|k| _mm256_set_m128i(inter[y + 1 + 2 * k], inter[y + 2 * k]));
+                core::array::from_fn(|k| _mm256_set_m128i(inter[y + 1 + 2 * k], inter[y + 2 * k]));
             let two = step2(m, &ty);
             sse += sse2(two, src.add(y * src_stride), src.add((y + 1) * src_stride));
         }
@@ -1270,8 +1272,8 @@ mod u8score {
         let mut sse = 0u32;
         for y in (0..8usize).step_by(2) {
             let pred = _mm_set_epi64x(
-                std::ptr::read_unaligned(r.add((y + 1) * rs) as *const i64),
-                std::ptr::read_unaligned(r.add(y * rs) as *const i64),
+                core::ptr::read_unaligned(r.add((y + 1) * rs) as *const i64),
+                core::ptr::read_unaligned(r.add(y * rs) as *const i64),
             );
             sse += sse2(pred, src.add(y * src_stride), src.add((y + 1) * src_stride));
         }
@@ -1299,12 +1301,12 @@ mod u8score {
                 base.add((by + r) as usize * refp.stride + bx as usize) as *const __m128i
             )
         };
-        let rows: [__m128i; 15] = std::array::from_fn(|j| row(j as i32 - 3));
-        let inter: [__m128i; 14] = std::array::from_fn(|j| _mm_unpacklo_epi8(rows[j], rows[j + 1]));
+        let rows: [__m128i; 15] = core::array::from_fn(|j| row(j as i32 - 3));
+        let inter: [__m128i; 14] = core::array::from_fn(|j| _mm_unpacklo_epi8(rows[j], rows[j + 1]));
         let mut sad = 0u32;
         for y in (0..8usize).step_by(2) {
             let m: [__m256i; 4] =
-                std::array::from_fn(|k| _mm256_set_m128i(inter[y + 1 + 2 * k], inter[y + 2 * k]));
+                core::array::from_fn(|k| _mm256_set_m128i(inter[y + 1 + 2 * k], inter[y + 2 * k]));
             let two = step2(m, &ty);
             sad += sad2(two, src.add(y * src_stride), src.add((y + 1) * src_stride));
         }
@@ -1322,10 +1324,10 @@ mod u8score {
     #[inline]
     unsafe fn rows4(p: *const u8, stride: usize) -> __m128i {
         _mm_setr_epi32(
-            std::ptr::read_unaligned(p as *const i32),
-            std::ptr::read_unaligned(p.add(stride) as *const i32),
-            std::ptr::read_unaligned(p.add(2 * stride) as *const i32),
-            std::ptr::read_unaligned(p.add(3 * stride) as *const i32),
+            core::ptr::read_unaligned(p as *const i32),
+            core::ptr::read_unaligned(p.add(stride) as *const i32),
+            core::ptr::read_unaligned(p.add(2 * stride) as *const i32),
+            core::ptr::read_unaligned(p.add(3 * stride) as *const i32),
         )
     }
 
@@ -1409,12 +1411,12 @@ mod u8score {
                 base.add((by + r) as usize * refp.stride + bx as usize) as *const __m128i
             )
         };
-        let rows: [__m128i; 11] = std::array::from_fn(|j| row(j as i32 - 3));
-        let inter: [__m128i; 10] = std::array::from_fn(|j| _mm_unpacklo_epi8(rows[j], rows[j + 1]));
+        let rows: [__m128i; 11] = core::array::from_fn(|j| row(j as i32 - 3));
+        let inter: [__m128i; 10] = core::array::from_fn(|j| _mm_unpacklo_epi8(rows[j], rows[j + 1]));
         let m0: [__m256i; 4] =
-            std::array::from_fn(|k| _mm256_set_m128i(inter[1 + 2 * k], inter[2 * k]));
+            core::array::from_fn(|k| _mm256_set_m128i(inter[1 + 2 * k], inter[2 * k]));
         let m2: [__m256i; 4] =
-            std::array::from_fn(|k| _mm256_set_m128i(inter[3 + 2 * k], inter[2 + 2 * k]));
+            core::array::from_fn(|k| _mm256_set_m128i(inter[3 + 2 * k], inter[2 + 2 * k]));
         sad4x4(step2(m0, &ty), step2(m2, &ty), rows4(src, src_stride))
     }
 
@@ -1445,15 +1447,15 @@ mod u8score {
         let last = step2(hwin2(row(7), row(7)), &tx);
         _mm_storeu_si128(tmp.as_mut_ptr().add(16 * 5) as *mut __m128i, last);
         // Vertical pass over rows 0..=10 of `tmp` (8 bytes each).
-        let inter: [__m128i; 10] = std::array::from_fn(|j| {
+        let inter: [__m128i; 10] = core::array::from_fn(|j| {
             let a = _mm_loadl_epi64(tmp.as_ptr().add(8 * j) as *const __m128i);
             let b = _mm_loadl_epi64(tmp.as_ptr().add(8 * (j + 1)) as *const __m128i);
             _mm_unpacklo_epi8(a, b)
         });
         let m0: [__m256i; 4] =
-            std::array::from_fn(|k| _mm256_set_m128i(inter[1 + 2 * k], inter[2 * k]));
+            core::array::from_fn(|k| _mm256_set_m128i(inter[1 + 2 * k], inter[2 * k]));
         let m2: [__m256i; 4] =
-            std::array::from_fn(|k| _mm256_set_m128i(inter[3 + 2 * k], inter[2 + 2 * k]));
+            core::array::from_fn(|k| _mm256_set_m128i(inter[3 + 2 * k], inter[2 + 2 * k]));
         sad4x4(step2(m0, &ty), step2(m2, &ty), rows4(src, src_stride))
     }
 }
@@ -1467,7 +1469,7 @@ mod u8bilin {
     // samples, so every value stays in [0,255] with NO clamp and the single
     // pmaddubsw product ≤ 255·128 = 32640 < 32767 — no saturation anywhere.
     use super::RefPlane8;
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
 
     /// (128−8p, 8p) replicated as 16 (i8,i8) lanes.
     #[target_feature(enable = "avx2")]
@@ -1504,8 +1506,8 @@ mod u8bilin {
     #[inline]
     unsafe fn sad2(pred2: __m128i, s0: *const u8, s1: *const u8) -> u32 {
         let s = _mm_set_epi64x(
-            std::ptr::read_unaligned(s1 as *const i64),
-            std::ptr::read_unaligned(s0 as *const i64),
+            core::ptr::read_unaligned(s1 as *const i64),
+            core::ptr::read_unaligned(s0 as *const i64),
         );
         let d = _mm_sad_epu8(pred2, s);
         (_mm_cvtsi128_si32(d) as u32) + (_mm_extract_epi32::<2>(d) as u32)
@@ -1604,7 +1606,7 @@ mod u8bilin {
                 base.add((by + r) as usize * refp.stride + bx as usize) as *const __m128i
             )
         };
-        let rows: [__m128i; 9] = std::array::from_fn(|j| row(j as i32));
+        let rows: [__m128i; 9] = core::array::from_fn(|j| row(j as i32));
         let mut sad = 0u32;
         for y in (0..8usize).step_by(2) {
             let i0 = _mm_unpacklo_epi8(rows[y], rows[y + 1]);
@@ -1692,22 +1694,22 @@ pub unsafe fn subpel_bilinear_score8x8_u8(
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub unsafe fn sad8x8_x4_u8(src: *const u8, ss: usize, refs: [*const u8; 4], rs: usize) -> [u32; 4] {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     let mut acc = [_mm_setzero_si128(); 4];
     for y in (0..8).step_by(2) {
         let sv = _mm_set_epi64x(
-            std::ptr::read_unaligned(src.add((y + 1) * ss) as *const i64),
-            std::ptr::read_unaligned(src.add(y * ss) as *const i64),
+            core::ptr::read_unaligned(src.add((y + 1) * ss) as *const i64),
+            core::ptr::read_unaligned(src.add(y * ss) as *const i64),
         );
         for (k, &r) in refs.iter().enumerate() {
             let rv = _mm_set_epi64x(
-                std::ptr::read_unaligned(r.add((y + 1) * rs) as *const i64),
-                std::ptr::read_unaligned(r.add(y * rs) as *const i64),
+                core::ptr::read_unaligned(r.add((y + 1) * rs) as *const i64),
+                core::ptr::read_unaligned(r.add(y * rs) as *const i64),
             );
             acc[k] = _mm_add_epi64(acc[k], _mm_sad_epu8(sv, rv));
         }
     }
-    std::array::from_fn(|k| {
+    core::array::from_fn(|k| {
         (_mm_cvtsi128_si64(acc[k]) as u32) + (_mm_extract_epi64::<1>(acc[k]) as u32)
     })
 }
@@ -1842,7 +1844,7 @@ pub unsafe fn subpel_sse8x8_u8(
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 unsafe fn avg8_avx2(src: *const u16, dst: *mut u16, n: usize) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     let one = _mm256_set1_epi32(1);
     let mut i = 0usize;
     while i + 8 <= n {
@@ -1970,7 +1972,14 @@ unsafe fn predict_block_avx2(
 #[cfg(target_arch = "aarch64")]
 #[inline]
 fn has_neon() -> bool {
-    std::arch::is_aarch64_feature_detected!("neon")
+    #[cfg(feature = "std")]
+    {
+        std::arch::is_aarch64_feature_detected!("neon")
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        cfg!(target_feature = "neon")
+    }
 }
 
 /// NEON 8-tap separable-convolution kernel, bit-identical to the scalar
@@ -1992,7 +2001,7 @@ unsafe fn conv8_neon(
     max: i32,
     avg: bool,
 ) {
-    use std::arch::aarch64::*;
+    use core::arch::aarch64::*;
     let round = vdupq_n_s32(64);
     let one = vdupq_n_s32(1);
     let zero = vdupq_n_s32(0);
@@ -2042,7 +2051,7 @@ unsafe fn conv8_neon(
 #[cfg(target_arch = "aarch64")]
 #[target_feature(enable = "neon")]
 unsafe fn avg8_neon(src: *const u16, dst: *mut u16, n: usize) {
-    use std::arch::aarch64::*;
+    use core::arch::aarch64::*;
     let one = vdupq_n_s32(1);
     let mut i = 0usize;
     while i + 4 <= n {
@@ -2091,7 +2100,7 @@ unsafe fn predict_block_neon(
                 if avg {
                     avg8_neon(s, d, w);
                 } else {
-                    std::ptr::copy_nonoverlapping(s, d, w);
+                    core::ptr::copy_nonoverlapping(s, d, w);
                 }
             }
         }
@@ -2189,8 +2198,8 @@ pub fn predict_block(
         if has_avx2() && w <= 64 && h <= 64 && !no_edge_tile() {
             const TS: usize = 72; // 64 + 7, rounded up
             thread_local! {
-                static TILE: std::cell::RefCell<[u16; TS * TS]> =
-                    const { std::cell::RefCell::new([0; TS * TS]) };
+                static TILE: core::cell::RefCell<[u16; TS * TS]> =
+                    const { core::cell::RefCell::new([0; TS * TS]) };
             }
             let (tw, th) = (w + 7, h + 7);
             return TILE.with(|cell| {
@@ -3422,7 +3431,7 @@ mod mc_microbench {
         #[cfg(target_arch = "x86_64")]
         // SAFETY: `_rdtsc` has no operands and no side effects.
         unsafe {
-            std::arch::x86_64::_rdtsc()
+            core::arch::x86_64::_rdtsc()
         }
         #[cfg(not(target_arch = "x86_64"))]
         0

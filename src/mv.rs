@@ -6,6 +6,8 @@
 //! bits / fractional / high-precision), and adds it to the reference MV.
 // Wired into the inter mode-info decoder (next).
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 use crate::bits::BoolDecoder;
 use crate::prob_tables::{NmvComp, NmvContext};

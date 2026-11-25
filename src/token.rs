@@ -10,6 +10,8 @@
 //! probabilities and Pareto expansion live in `prob_tables.rs`.
 
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 use crate::bits::BoolDecoder;
 use crate::prob_tables::*;

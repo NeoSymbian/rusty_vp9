@@ -4,6 +4,8 @@
 
 #![allow(dead_code)]
 #![allow(clippy::all)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 pub(crate) const DEFAULT_SCAN_4X4: [i16; 16] =
     [0, 4, 1, 5, 8, 2, 12, 9, 3, 6, 13, 10, 7, 14, 11, 15];

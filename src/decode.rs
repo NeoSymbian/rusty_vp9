@@ -8,6 +8,8 @@
 //! Targeted at the 8-bit intra key-frame path (Profiles 0/1). Inter prediction
 //! and the loop filter are later stages.
 
+#[allow(unused_imports)]
+use crate::prelude::*;
 use crate::bits::BoolDecoder;
 use crate::block::{
     kf_uv_mode_probs, kf_y_mode_probs, partition_plane_context, read_intra_mode, read_partition,
@@ -910,7 +912,7 @@ fn setup_compound_reference_mode(fc: &mut FrameContext, sign_bias: &[bool; 3]) {
 fn read_mv_probs(b: &mut BoolDecoder, nmvc: &mut NmvContext, allow_hp: bool) {
     update_mv_probs(b, &mut nmvc.joints);
     for c in &mut nmvc.comps {
-        update_mv_probs(b, std::slice::from_mut(&mut c.sign));
+        update_mv_probs(b, core::slice::from_mut(&mut c.sign));
         update_mv_probs(b, &mut c.classes);
         update_mv_probs(b, &mut c.class0);
         update_mv_probs(b, &mut c.bits);
@@ -923,8 +925,8 @@ fn read_mv_probs(b: &mut BoolDecoder, nmvc: &mut NmvContext, allow_hp: bool) {
     }
     if allow_hp {
         for c in &mut nmvc.comps {
-            update_mv_probs(b, std::slice::from_mut(&mut c.class0_hp));
-            update_mv_probs(b, std::slice::from_mut(&mut c.hp));
+            update_mv_probs(b, core::slice::from_mut(&mut c.class0_hp));
+            update_mv_probs(b, core::slice::from_mut(&mut c.hp));
         }
     }
 }
@@ -944,7 +946,7 @@ struct Plane {
 /// `new_recycled` for why skipping it is sound). Set `VP9_ZERO_RECYCLED=1` to
 /// restore the conservative behaviour.
 fn zero_recycled() -> bool {
-    static E: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var("VP9_ZERO_RECYCLED").is_ok())
 }
 
@@ -1081,7 +1083,7 @@ pub struct Reconstructor {
     dq_y: [(i32, i32); 8],
     dq_uv: [(i32, i32); 8],
     seg: Seg,
-    prev_seg_map: Option<std::sync::Arc<Vec<u8>>>,
+    prev_seg_map: Option<alloc::sync::Arc<Vec<u8>>>,
     cur_seg_map: Vec<u8>,
     /// mi bounds of the tile currently being decoded (for neighbour clipping).
     tile_col_start: usize,
@@ -1101,10 +1103,10 @@ pub struct Reconstructor {
     /// `ref_frame_sign_bias` indexed by reference (INTRA..ALTREF).
     sign_bias: [bool; 4],
     /// The three active references (LAST/GOLDEN/ALTREF), resolved from the map.
-    refs: [Option<std::sync::Arc<RefFrame>>; 3],
+    refs: [Option<alloc::sync::Arc<RefFrame>>; 3],
     counts: FrameCounts,
     /// Previous frame's per-mi motion records (for temporal MV prediction).
-    prev_mvs: Option<std::sync::Arc<Vec<MvRef>>>,
+    prev_mvs: Option<alloc::sync::Arc<Vec<MvRef>>>,
     use_prev_mvs: bool,
     /// Maximum pixel value `(1<<bit_depth)-1` (255 at 8-bit), for clamping.
     max_px: i32,
@@ -1257,7 +1259,7 @@ pub fn decode_intra_frame(
     h: &FrameHeader,
     data: &[u8],
 ) -> crate::Result<([Vec<u8>; 3], [usize; 3], [usize; 3])> {
-    let no_refs: [Option<std::sync::Arc<RefFrame>>; 3] = [None, None, None];
+    let no_refs: [Option<alloc::sync::Arc<RefFrame>>; 3] = [None, None, None];
     let (rf, _fc, _mvs, _seg) = decode_frame(
         h,
         data,
@@ -1297,18 +1299,18 @@ pub fn decode_intra_frame(
 pub fn decode_frame(
     h: &FrameHeader,
     data: &[u8],
-    refs: &[Option<std::sync::Arc<RefFrame>>; 3],
+    refs: &[Option<alloc::sync::Arc<RefFrame>>; 3],
     pre_fc: &FrameContext,
     last_frame_key: bool,
-    prev_mvs: Option<std::sync::Arc<Vec<MvRef>>>,
+    prev_mvs: Option<alloc::sync::Arc<Vec<MvRef>>>,
     use_prev_mvs: bool,
-    prev_seg_map: Option<std::sync::Arc<Vec<u8>>>,
+    prev_seg_map: Option<alloc::sync::Arc<Vec<u8>>>,
     recycled: Option<[Vec<u16>; 3]>,
 ) -> crate::Result<(
     RefFrame,
     FrameContext,
-    std::sync::Arc<Vec<MvRef>>,
-    std::sync::Arc<Vec<u8>>,
+    alloc::sync::Arc<Vec<MvRef>>,
+    alloc::sync::Arc<Vec<u8>>,
 )> {
     let start = h.uncompressed_bytes;
     let end = start.saturating_add(h.header_size as usize);
@@ -1461,9 +1463,9 @@ pub fn decode_frame(
 
     // Hand back the padded planes as a reference frame (frame at origin).
     let planes = [
-        std::mem::take(&mut rec.planes[0].buf),
-        std::mem::take(&mut rec.planes[1].buf),
-        std::mem::take(&mut rec.planes[2].buf),
+        core::mem::take(&mut rec.planes[0].buf),
+        core::mem::take(&mut rec.planes[1].buf),
+        core::mem::take(&mut rec.planes[2].buf),
     ];
     let rf = RefFrame {
         planes,
@@ -1498,8 +1500,8 @@ pub fn decode_frame(
     Ok((
         rf,
         out_fc,
-        std::sync::Arc::new(mvs),
-        std::sync::Arc::new(rec.cur_seg_map),
+        alloc::sync::Arc::new(mvs),
+        alloc::sync::Arc::new(rec.cur_seg_map),
     ))
 }
 

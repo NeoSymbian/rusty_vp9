@@ -39,8 +39,12 @@ license = "Apache-2.0"
 repository = "https://github.com/Remade-With-Rust/remade_ffmpeg_rs"
 
 [features]
-env-tuning = []
-prometheus-telemetry = []
+default = ["std", "encoder"]
+# NeoSymbian: without std the decoder is no_std + alloc; the encoder, the profiler and env tuning need std.
+std = []
+encoder = ["std"]
+env-tuning = ["std"]
+prometheus-telemetry = ["std"]
 
 [lib]
 name = "rusty_vp9"
@@ -51,3 +55,4 @@ name = "keyframe_interval"
 path = "tests/keyframe_interval.rs"
 
 [dependencies]
+spin = { version = "0.10", default-features = false, features = ["spin_mutex", "mutex", "once"] }

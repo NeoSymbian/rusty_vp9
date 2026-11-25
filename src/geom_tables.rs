@@ -3,6 +3,8 @@
 //! Index order: 4X4,4X8,8X4,8X8,8X16,16X8,16X16,16X32,32X16,32X32,32X64,64X32,64X64.
 
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 pub(crate) const B_WIDTH_LOG2: [u8; 13] = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4];
 pub(crate) const B_HEIGHT_LOG2: [u8; 13] = [0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4];

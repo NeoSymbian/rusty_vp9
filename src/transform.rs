@@ -6,6 +6,8 @@
 //! coefficient decoder.
 
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 /// Fixed-point fractional bits for the transform constants.
 const DCT_CONST_BITS: i64 = 14;
@@ -757,7 +759,7 @@ fn iadst_1d(input: &[i32], output: &mut [i32]) {
 /// A/B switch for the AVX2 32×32 column pass (DEFAULT ON; set to disable).
 #[cfg(target_arch = "x86_64")]
 fn no_tx32_avx2() -> bool {
-    static E: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var("VP9_NO_TX32_AVX2").is_ok())
 }
 
@@ -776,7 +778,7 @@ fn no_tx32_avx2() -> bool {
 /// the same clip. Only the microbenchmark could resolve it.
 #[cfg(target_arch = "x86_64")]
 fn no_tx16_avx2() -> bool {
-    static E: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var("VP9_NO_TX16_AVX2").is_ok())
 }
 
@@ -784,7 +786,7 @@ fn no_tx16_avx2() -> bool {
 /// own and the scalar twin stays one env-var away as the fallback.
 #[cfg(target_arch = "x86_64")]
 fn no_tx4_avx2() -> bool {
-    static E: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var("VP9_NO_TX4_AVX2").is_ok())
 }
 
@@ -848,7 +850,7 @@ pub fn inverse_transform_add(
 /// variable up there meant an environment scan on every such block.
 #[cfg(target_arch = "x86_64")]
 fn gateprobe() -> bool {
-    static E: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var_os("VP9_GATEPROBE").is_some())
 }
 
@@ -901,7 +903,7 @@ pub fn inverse_transform_add_rows(
     // TEMP measurement: how often would each candidate 16x16 gate reject?
     #[cfg(target_arch = "x86_64")]
     if n == 16 && !col_adst && gateprobe() {
-        use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+        use core::sync::atomic::{AtomicU64, Ordering::Relaxed};
         pub static G: [AtomicU64; 4] = [const { AtomicU64::new(0) }; 4];
         let cmax = coeffs[..16 * nz_rows]
             .iter()
@@ -1091,7 +1093,7 @@ pub fn inverse_transform_add_rows(
 thread_local! {
     /// Row-pass scratch for the 2-D inverse transform (max 32×32). Per-thread, so
     /// concurrent decoder instances don't contend.
-    static TX_TMP: std::cell::RefCell<[i32; 1024]> = const { std::cell::RefCell::new([0; 1024]) };
+    static TX_TMP: core::cell::RefCell<[i32; 1024]> = const { core::cell::RefCell::new([0; 1024]) };
 }
 
 /// Max |coefficient| for which the AVX2 8×8 inverse-DCT path is PROVABLY free of
@@ -1138,7 +1140,7 @@ const IDCT32_VEC_MAX_IN: i32 = 4096;
 #[cfg(target_arch = "x86_64")]
 mod idct_avx2 {
     use super::COSPI;
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
 
     #[target_feature(enable = "avx2")]
     #[inline]
@@ -1339,7 +1341,7 @@ mod idct_avx2 {
         let pp = |a, b, c0: i64, c1: i64| rs4(add(mul4(a, c0), mul4(b, c1)));
 
         // ---- even half: idct16 over input[0], input[2], .., input[30] --------
-        let ev: [__m128i; 16] = std::array::from_fn(|i| input[2 * i]);
+        let ev: [__m128i; 16] = core::array::from_fn(|i| input[2 * i]);
         let lo = bfly16(&ev);
 
         // ---- odd half: `t[j]` tracks the scalar's `s*[16 + j]` ---------------
@@ -1471,7 +1473,7 @@ mod idct_avx2 {
         let round = _mm_set1_epi32(1 << (SHIFT - 1));
         for g in 0..8 {
             let base = g * 4;
-            let v: [__m128i; 32] = std::array::from_fn(|r| {
+            let v: [__m128i; 32] = core::array::from_fn(|r| {
                 _mm_loadu_si128(tmp.as_ptr().add(r * 32 + base) as *const __m128i)
             });
             let out = bfly32(&v);
@@ -1515,7 +1517,7 @@ mod idct_avx2 {
         let round = _mm_set1_epi32(1 << (SHIFT - 1));
         for g in 0..4 {
             let base = g * 4;
-            let v: [__m128i; 16] = std::array::from_fn(|r| {
+            let v: [__m128i; 16] = core::array::from_fn(|r| {
                 _mm_loadu_si128(tmp.as_ptr().add(r * 16 + base) as *const __m128i)
             });
             let out = bfly16(&v);
@@ -1597,7 +1599,7 @@ mod idct_avx2 {
         nz_rows: usize,
     ) {
         let zero = _mm_setzero_si128();
-        let mut v: [__m128i; 4] = std::array::from_fn(|r| {
+        let mut v: [__m128i; 4] = core::array::from_fn(|r| {
             if r < nz_rows {
                 _mm_loadu_si128(coeffs.as_ptr().add(r * 4) as *const __m128i)
             } else {
@@ -1637,7 +1639,7 @@ mod idct_avx2 {
         nz_rows: usize,
     ) {
         let zero = _mm256_setzero_si256();
-        let mut v: [__m256i; 8] = std::array::from_fn(|r| {
+        let mut v: [__m256i; 8] = core::array::from_fn(|r| {
             if r < nz_rows {
                 _mm256_loadu_si256(coeffs.as_ptr().add(r * 8) as *const __m256i)
             } else {
@@ -1828,7 +1830,7 @@ mod tests {
 
     #[test]
     fn cospi_constants_match_formula() {
-        use std::f64::consts::PI;
+        use core::f64::consts::PI;
         for i in 1..32 {
             let want = (((i as f64) * PI / 64.0).cos() * (1i64 << 14) as f64).round() as i64;
             assert_eq!(COSPI[i], want, "cospi_{i}_64");
@@ -1839,7 +1841,7 @@ mod tests {
     /// trusted `idct4`): DC basis is `cospi_16_64/2^14`, AC basis is
     /// `cos(π(2n+1)k/(2N))`.
     fn float_idct(x: &[i32]) -> Vec<f64> {
-        use std::f64::consts::PI;
+        use core::f64::consts::PI;
         let n = x.len();
         let dc = COSPI_16_64 as f64 / (1i64 << 14) as f64;
         (0..n)
@@ -1919,7 +1921,7 @@ mod tests {
     /// Reference float inverse ADST (VP9 = DST-VII):
     /// `out[m] = Σ_k x[k]·sin(π(2k+1)(m+1)/(2N+1))`. Verified against `iadst4`.
     fn float_iadst(x: &[i32]) -> Vec<f64> {
-        use std::f64::consts::PI;
+        use core::f64::consts::PI;
         let n = x.len();
         (0..n)
             .map(|m| {
@@ -1977,9 +1979,9 @@ mod tests {
     /// verbatim from libvpx; exact pixels are confirmed end-to-end in stage 3i.)
     fn assert_orthogonal<const N: usize>(f: impl Fn(&[i32; N], &mut [i32; N]), gain: f64) {
         let inputs: [[i32; N]; 3] = [
-            std::array::from_fn(|i| ((i * 37 + 5) % 200) as i32 - 100),
-            std::array::from_fn(|i| if i % 3 == 0 { 200 } else { -50 }),
-            std::array::from_fn(|i| (i as i32 + 1) * 10),
+            core::array::from_fn(|i| ((i * 37 + 5) % 200) as i32 - 100),
+            core::array::from_fn(|i| if i % 3 == 0 { 200 } else { -50 }),
+            core::array::from_fn(|i| (i as i32 + 1) * 10),
         ];
         let ratios: Vec<f64> = inputs
             .iter()
@@ -2522,7 +2524,7 @@ mod tx_microbench {
         #[cfg(target_arch = "x86_64")]
         // SAFETY: `_rdtsc` has no operands and no side effects.
         unsafe {
-            std::arch::x86_64::_rdtsc()
+            core::arch::x86_64::_rdtsc()
         }
         #[cfg(not(target_arch = "x86_64"))]
         0
@@ -2661,7 +2663,7 @@ mod idct32_bound_proof {
     /// pessimistic, so passing over-proves safety.
     fn propagate(t_in: i64) -> bool {
         let c = |i: usize| COSPI[i] as i64;
-        let ok = std::cell::Cell::new(true);
+        let ok = core::cell::Cell::new(true);
         let rot = |v: i64, k: i64| -> i64 {
             if v * k >= i32::MAX as i64 {
                 ok.set(false);

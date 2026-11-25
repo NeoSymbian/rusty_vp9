@@ -4,6 +4,8 @@
 //! header (`f(n)` / `s(n)` in the spec), and the VP9 **boolean arithmetic
 //! decoder** used for the compressed header and tile/residual data.
 
+#[allow(unused_imports)]
+use crate::prelude::*;
 use crate::{Error, Result};
 
 /// MSB-first bit reader for the uncompressed header.

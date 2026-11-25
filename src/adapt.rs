@@ -8,6 +8,8 @@
 //! count→factor table). Tree-structured probabilities merge bottom-up.
 
 /// `MODE_MV_COUNT_SAT` — the count at which the mode/mv update factor saturates.
+#[allow(unused_imports)]
+use crate::prelude::*;
 const MODE_MV_COUNT_SAT: u32 = 20;
 
 /// `count_to_update_factor[MODE_MV_COUNT_SAT + 1]` = 128 * count / 20.

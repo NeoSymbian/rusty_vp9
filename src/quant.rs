@@ -5,6 +5,8 @@
 //! (clamped); the DC coefficient uses the DC table, the rest the AC table.
 
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 /// DC quantizer lookup, indexed by clamped qindex 0..=255.
 pub const DC_QLOOKUP: [i32; 256] = [

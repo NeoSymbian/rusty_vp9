@@ -8,6 +8,8 @@
 //! block's transform size, then applies the vertical edges followed by the
 //! horizontal edges. The leaf kernels (`filter4/8/16`) are transcribed verbatim.
 
+#[allow(unused_imports)]
+use crate::prelude::*;
 use crate::block::ModeInfo;
 use crate::geom_tables::MAX_TXSIZE;
 use crate::FrameHeader;
@@ -375,7 +377,7 @@ mod scalar_ref {
 #[allow(clippy::too_many_arguments)]
 /// A/B switch for mask sharing (DEFAULT ON; set to rebuild per plane).
 fn no_mask_share() -> bool {
-    static E: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var("VP9_NO_LF_MASK_SHARE").is_ok())
 }
 
@@ -1111,8 +1113,8 @@ fn scatter(
 /// = row). Standard unpack/permute network; pure data movement, value-preserving.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
-unsafe fn transpose8(r: &mut [std::arch::x86_64::__m256i; 8]) {
-    use std::arch::x86_64::*;
+unsafe fn transpose8(r: &mut [core::arch::x86_64::__m256i; 8]) {
+    use core::arch::x86_64::*;
     let a0 = _mm256_unpacklo_epi32(r[0], r[1]);
     let a1 = _mm256_unpackhi_epi32(r[0], r[1]);
     let a2 = _mm256_unpacklo_epi32(r[2], r[3]);
@@ -1147,16 +1149,16 @@ unsafe fn transpose8(r: &mut [std::arch::x86_64::__m256i; 8]) {
 #[target_feature(enable = "avx2")]
 #[inline]
 unsafe fn lf_core8(
-    p: &[std::arch::x86_64::__m256i; 8],
-    q: &[std::arch::x86_64::__m256i; 8],
+    p: &[core::arch::x86_64::__m256i; 8],
+    q: &[core::arch::x86_64::__m256i; 8],
     width: usize,
     t: &Thresh,
     bd: i32,
 ) -> (
-    [std::arch::x86_64::__m256i; 7],
-    [std::arch::x86_64::__m256i; 7],
+    [core::arch::x86_64::__m256i; 7],
+    [core::arch::x86_64::__m256i; 7],
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     let basei = 1i32 << (bd - 1);
     let ftv = _mm256_set1_epi32(1i32 << (bd - 8));
     let one = _mm256_set1_epi32(1);
@@ -1459,9 +1461,9 @@ unsafe fn lf_core8(
 
 #[cfg(target_arch = "x86_64")]
 #[inline]
-fn p_to_arr(p: &[std::arch::x86_64::__m256i; 8]) -> &[std::arch::x86_64::__m256i; 7] {
+fn p_to_arr(p: &[core::arch::x86_64::__m256i; 8]) -> &[core::arch::x86_64::__m256i; 7] {
     // first 7 of 8; safe reinterpret of the leading array prefix
-    unsafe { &*(p.as_ptr() as *const [std::arch::x86_64::__m256i; 7]) }
+    unsafe { &*(p.as_ptr() as *const [core::arch::x86_64::__m256i; 7]) }
 }
 
 /// AVX2 deblock for one edge (8 samples). Horizontal edges (`lane_stride == 1`)
@@ -1479,7 +1481,7 @@ unsafe fn filter_edge8_avx2<const W: usize, const VERT: bool>(
     t: &Thresh,
     bd: i32,
 ) {
-    use std::arch::x86_64::*;
+    use core::arch::x86_64::*;
     // One monomorph per (width class, orientation): the width tests, the tap
     // count, the store count and the contiguous/transposed choice below are all
     // compile-time constants in each, instead of branches taken per edge.

@@ -14,6 +14,8 @@
 //! verified end-to-end against FFmpeg in stage H.
 
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 use crate::bits::BoolDecoder;
 use crate::geom_tables::*;

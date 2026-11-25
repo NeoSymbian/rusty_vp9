@@ -10,6 +10,8 @@
 //!   (libvpx `vp9_model_to_full_probs`).
 
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 pub(crate) use crate::prob_tables::*;
 

@@ -9,8 +9,17 @@
 //! alone. Settings an application needs are on
 //! [`Vp9EncoderConfig`](crate::Vp9EncoderConfig) instead.
 
+#[cfg(feature = "std")]
 use std::env::VarError;
+#[cfg(feature = "std")]
 use std::ffi::OsString;
+/// Without std there is no environment: every switch is unset (NeoSymbian).
+#[cfg(not(feature = "std"))]
+pub(crate) struct VarError;
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+#[cfg(not(feature = "std"))]
+type OsString = String;
 
 /// [`std::env::var`] with the `env-tuning` feature, else always unset.
 #[inline]
@@ -22,7 +31,10 @@ pub(crate) fn var(key: &str) -> Result<String, VarError> {
     #[cfg(not(feature = "env-tuning"))]
     {
         let _ = key;
-        Err(VarError::NotPresent)
+        #[cfg(feature = "std")]
+        return Err(VarError::NotPresent);
+        #[cfg(not(feature = "std"))]
+        return Err(VarError);
     }
 }
 

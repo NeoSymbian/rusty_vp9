@@ -13,6 +13,8 @@
 //! `above[k]` maps to `above[k + 1]` here.
 
 #![allow(dead_code)]
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 #[inline]
 fn avg2(a: u16, b: u16) -> u16 {
