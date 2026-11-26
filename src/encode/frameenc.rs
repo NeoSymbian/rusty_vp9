@@ -1425,7 +1425,7 @@ impl FrameEncoder {
             has_avx2: {
                 #[cfg(target_arch = "x86_64")]
                 {
-                    std::is_x86_feature_detected!("avx2")
+                    crate::avx2()
                 }
                 #[cfg(not(target_arch = "x86_64"))]
                 {
@@ -7734,7 +7734,7 @@ mod tests {
     fn sad8x8_avx2_matches_scalar() {
         #[cfg(target_arch = "x86_64")]
         {
-            if !std::is_x86_feature_detected!("avx2") {
+            if !crate::avx2() {
                 return; // non-AVX2 CI host: scalar is the only path anyway.
             }
             let mut seed = 0x1234_5678_9abc_def0u64;

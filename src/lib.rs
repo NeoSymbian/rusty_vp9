@@ -133,6 +133,21 @@ mod prob_tables;
 /// analyzer can drive it in-process; a normal decode never touches it.
 #[cfg(feature = "std")]
 pub mod prof;
+
+/// AVX2 on this CPU: detected at run time with std; without std (NeoSymbian) only when the build targets it, since
+/// core can't ask the CPU.
+#[cfg(target_arch = "x86_64")]
+#[inline]
+pub(crate) fn avx2() -> bool {
+    #[cfg(feature = "std")]
+    {
+        std::is_x86_feature_detected!("avx2")
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        cfg!(target_feature = "avx2")
+    }
+}
 mod quant;
 mod scan_tables;
 mod token;
@@ -1046,7 +1061,7 @@ pub struct DecodedFrame {
 /// the whole picture per frame. With AVX2 it runs 32 samples a step.
 fn narrow_plane(src: &[u16], stride: usize, w: usize, h: usize, out: &mut Vec<u8>) {
     #[cfg(target_arch = "x86_64")]
-    if w > 0 && h > 0 && std::is_x86_feature_detected!("avx2") {
+    if w > 0 && h > 0 && crate::avx2() {
         let src = &src[..(h - 1) * stride + w];
         out.reserve(w * h);
         // SAFETY: AVX2 confirmed. Every row read is `w` samples at `y * stride`,

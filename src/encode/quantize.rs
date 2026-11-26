@@ -49,7 +49,7 @@ pub fn quantize(
     // are order-independent, and `eob = max(iscan[pos]) + 1` equals the last
     // nonzero in scan order. The scalar loop below stays as the oracle/fallback.
     #[cfg(target_arch = "x86_64")]
-    if n >= 16 && std::is_x86_feature_detected!("avx2") {
+    if n >= 16 && crate::avx2() {
         // SAFETY: AVX2 confirmed; n is a multiple of 16 (4×4 .. 32×32 blocks).
         return unsafe {
             quantize_masked_avx2(
@@ -224,7 +224,7 @@ mod tests {
     #[cfg(target_arch = "x86_64")]
     #[test]
     fn quantize_masked_matches_scan_loop() {
-        if !std::is_x86_feature_detected!("avx2") {
+        if !crate::avx2() {
             return;
         }
         let mut s = 0x5151_a3a3_7777_0202u64;

@@ -557,7 +557,7 @@ fn no_edge_tile() -> bool {
 #[cfg(target_arch = "x86_64")]
 #[inline]
 fn has_avx2() -> bool {
-    std::is_x86_feature_detected!("avx2")
+    crate::avx2()
 }
 
 /// AVX2 8-tap separable-convolution kernel, bit-identical to the scalar

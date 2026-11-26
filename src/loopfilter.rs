@@ -703,7 +703,7 @@ fn filter_edge8(
     // AVX2: horizontal edges (lane_stride == 1) gather/scatter contiguously;
     // vertical edges transpose an 8×8 (or 8×16) tile in-register.
     #[cfg(target_arch = "x86_64")]
-    if std::is_x86_feature_detected!("avx2") && (lane_stride == 1 || pos_stride == 1) {
+    if crate::avx2() && (lane_stride == 1 || pos_stride == 1) {
         let horiz = lane_stride == 1;
         let stride = if horiz { pos_stride } else { lane_stride };
         // SAFETY: AVX2 confirmed; the caller's mask guarantees the p7..q7 read
@@ -1683,7 +1683,7 @@ fn apply_edge<const W: usize, const VERT: bool>(
 fn lf_avx2() -> bool {
     #[cfg(target_arch = "x86_64")]
     {
-        std::is_x86_feature_detected!("avx2")
+        crate::avx2()
     }
     #[cfg(not(target_arch = "x86_64"))]
     {

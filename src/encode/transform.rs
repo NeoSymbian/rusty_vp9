@@ -228,7 +228,7 @@ unsafe fn fdct8x8_avx2(residual: &[i32], out: &mut [i32]) {
 #[cfg(target_arch = "x86_64")]
 #[inline]
 fn has_avx2() -> bool {
-    std::is_x86_feature_detected!("avx2")
+    crate::avx2()
 }
 
 /// Forward 2-D DCT for an 8×8 block (libvpx `vpx_fdct8x8`): columns pre-scaled
@@ -1218,7 +1218,7 @@ mod tests {
     #[cfg(target_arch = "x86_64")]
     #[test]
     fn matrix_avx2_matches_scalar() {
-        if !std::is_x86_feature_detected!("avx2") {
+        if !crate::avx2() {
             return;
         }
         fn run(n: usize, residual: &[i32], rm: &MatBasis, cb: &[i64], out: &mut [i32]) -> bool {

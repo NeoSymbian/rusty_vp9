@@ -848,7 +848,7 @@ pub fn inverse_transform_add(
 /// Whether the `VP9_GATEPROBE` measurement tap is enabled. Read once per
 /// process: the tap sits on the 16x16 inverse-transform path, and looking the
 /// variable up there meant an environment scan on every such block.
-#[cfg(target_arch = "x86_64")]
+#[cfg(all(target_arch = "x86_64", feature = "std"))]
 fn gateprobe() -> bool {
     static E: crate::OnceLock<bool> = crate::OnceLock::new();
     *E.get_or_init(|| crate::tune::var_os("VP9_GATEPROBE").is_some())
@@ -901,7 +901,7 @@ pub fn inverse_transform_add_rows(
     // before the column pass reads it, so no re-zeroing is needed.
     let nz_rows = nz_rows.clamp(1, n);
     // TEMP measurement: how often would each candidate 16x16 gate reject?
-    #[cfg(target_arch = "x86_64")]
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
     if n == 16 && !col_adst && gateprobe() {
         use core::sync::atomic::{AtomicU64, Ordering::Relaxed};
         pub static G: [AtomicU64; 4] = [const { AtomicU64::new(0) }; 4];
@@ -949,7 +949,7 @@ pub fn inverse_transform_add_rows(
     if n == 4
         && tx_type == TxType::DctDct
         && !no_tx4_avx2()
-        && std::is_x86_feature_detected!("avx2")
+        && crate::avx2()
         && coeffs[..4 * nz_rows]
             .iter()
             .all(|&v| v.unsigned_abs() <= IDCT4_AVX2_MAX_COEF as u32)
@@ -964,7 +964,7 @@ pub fn inverse_transform_add_rows(
     #[cfg(target_arch = "x86_64")]
     if n == 8
         && tx_type == TxType::DctDct
-        && std::is_x86_feature_detected!("avx2")
+        && crate::avx2()
         && coeffs[..8 * nz_rows]
             .iter()
             .all(|&v| v.unsigned_abs() <= IDCT8_AVX2_MAX_COEF as u32)
@@ -1003,7 +1003,7 @@ pub fn inverse_transform_add_rows(
             // turned a content sign-flip (akiyo +13.8%, foreman +11.2% but bus
             // -10.6%, mobile -2.0%) into a win-or-neutral on every clip.
             && !no_tx16_avx2()
-            && std::is_x86_feature_detected!("avx2")
+            && crate::avx2()
             // Only the rows the row pass actually WROTE need scanning: rows past
             // `nz_rows` were zeroed above and cannot raise the maximum. On sparse
             // blocks that is 32 elements rather than 256.
@@ -1021,7 +1021,7 @@ pub fn inverse_transform_add_rows(
             && !col_adst
             && nz_rows > 1
             && !no_tx32_avx2()
-            && std::is_x86_feature_detected!("avx2")
+            && crate::avx2()
             && tmp[..32 * nz_rows]
                 .iter()
                 .map(|v| v.unsigned_abs())
@@ -1730,7 +1730,7 @@ mod tests {
     #[cfg(target_arch = "x86_64")]
     #[test]
     fn idct8x8_avx2_matches_scalar() {
-        if !std::is_x86_feature_detected!("avx2") {
+        if !crate::avx2() {
             return;
         }
         let mut s = 0xabcd_ef01_2345_6789u64;
@@ -2288,7 +2288,7 @@ mod idct4_avx2_tests {
     #[cfg(target_arch = "x86_64")]
     #[test]
     fn idct4x4_avx2_matches_scalar() {
-        if !std::is_x86_feature_detected!("avx2") {
+        if !crate::avx2() {
             return;
         }
         // Deterministic xorshift: no dev-dependency, reproducible failures.
@@ -2456,7 +2456,7 @@ mod idct16_avx2_tests {
     /// non-trivial prediction.
     #[test]
     fn idct16_cols_avx2_matches_scalar() {
-        if !std::is_x86_feature_detected!("avx2") {
+        if !crate::avx2() {
             return;
         }
         let mut st = 0x9E3779B97F4A7C15u64;
@@ -2601,7 +2601,7 @@ mod idct32_avx2_tests {
     /// even/odd decomposition or the odd-half transcription.
     #[test]
     fn idct32_cols_avx2_matches_scalar() {
-        if !std::is_x86_feature_detected!("avx2") {
+        if !crate::avx2() {
             return;
         }
         let mut st = 0xA24BAED4963EE407u64;
